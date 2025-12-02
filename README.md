@@ -9,6 +9,8 @@ This project is an attempt to build an app that actually *helps* us maintain fri
 It’s not a new social network. It’s not another planner. It’s not a city guide.  
 It’s the *brain* your social life has been missing.
 
+Try it out here: https://social-life-glue.lovable.app
+
 ---
 
 # Why Neighborly Exists
