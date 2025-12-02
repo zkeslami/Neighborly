@@ -37,6 +37,7 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
   const [time, setTime] = useState("");
   const [location, setLocation] = useState(prefilledLocation || "");
   const [notes, setNotes] = useState("");
+  const [workoutUrl, setWorkoutUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { friends, loading: friendsLoading } = useFriends();
@@ -58,6 +59,7 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
     setTime("");
     setLocation(prefilledLocation || "");
     setNotes("");
+    setWorkoutUrl("");
   };
 
   const handleClose = () => {
@@ -89,6 +91,7 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
       notes: notes || null,
       workout_id: null,
       workout_name: eventType === "workout" ? "Custom Workout" : null,
+      workout_url: workoutUrl || null,
       attendee_ids: selectedFriends,
       status: 'upcoming'
     });
@@ -241,14 +244,25 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
               />
             </div>
             {isWorkout && (
-              <Button 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => window.open("https://generafit-ai.lovable.app/", "_blank")}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Browse workouts on GeneraFit AI
-              </Button>
+              <div className="space-y-2">
+                <div>
+                  <Label htmlFor="workoutUrl">GeneraFit Workout URL (optional)</Label>
+                  <Input 
+                    id="workoutUrl"
+                    value={workoutUrl}
+                    onChange={e => setWorkoutUrl(e.target.value)}
+                    placeholder="Paste your GeneraFit workout link..."
+                  />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => window.open("https://generafit-ai.lovable.app/", "_blank")}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Browse workouts on GeneraFit AI
+                </Button>
+              </div>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>Back</Button>

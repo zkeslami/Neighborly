@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { CreateEventDialog } from "@/components/plan/CreateEventDialog";
 import { EventDetailModal } from "@/components/plan/EventDetailModal";
 import { EmailShareModal } from "@/components/shared/EmailShareModal";
+import { WhatsAppShareButton } from "@/components/shared/WhatsAppShareButton";
 
 export default function Plan() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -90,16 +91,22 @@ export default function Plan() {
           <div className="flex gap-2 mt-4" onClick={e => e.stopPropagation()}>
             <Button size="sm" variant="outline" onClick={() => handleShare(event)}>
               <Mail className="h-4 w-4 mr-1" />
-              Share
+              Email
             </Button>
-            {isWorkout && (
+            <WhatsAppShareButton
+              title={event.title}
+              date={format(new Date(event.date), "EEE, MMM d 'at' h:mm a")}
+              location={event.location_name || undefined}
+              workoutUrl={event.workout_url || undefined}
+            />
+            {isWorkout && event.workout_url && (
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => window.open("https://generafit-ai.lovable.app/", "_blank")}
+                onClick={() => window.open(event.workout_url!, "_blank")}
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                GeneraFit
+                Workout
               </Button>
             )}
           </div>

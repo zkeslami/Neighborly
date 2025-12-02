@@ -17,12 +17,15 @@ export interface Event {
   notes: string | null;
   workout_id: string | null;
   workout_name: string | null;
+  workout_url: string | null;
   attendee_ids: string[] | null;
+  reminder_sent_24h: boolean | null;
+  reminder_sent_1h: boolean | null;
   created_at: string;
   updated_at: string;
 }
 
-export type NewEvent = Omit<Event, 'id' | 'created_at' | 'updated_at'>;
+export type NewEvent = Omit<Event, 'id' | 'created_at' | 'updated_at' | 'reminder_sent_24h' | 'reminder_sent_1h'>;
 
 export function useEvents() {
   const [events, setEvents] = useState<Event[]>([]);

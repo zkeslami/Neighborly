@@ -11,10 +11,11 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MessageCircle, Plus, MapPin, AlertTriangle, Clock, Loader2 } from "lucide-react";
-import { useQuestions } from "@/hooks/useQuestions";
+import { useQuestions, Question } from "@/hooks/useQuestions";
 import { useAlerts } from "@/hooks/useAlerts";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { AnswerDialog } from "@/components/ask/AnswerDialog";
 
 const categoryColors: Record<string, string> = {
   "Home Repair": "bg-primary/10 text-primary",
@@ -30,15 +31,22 @@ const categoryColors: Record<string, string> = {
 
 export default function Ask() {
   const [askDialogOpen, setAskDialogOpen] = useState(false);
+  const [answerDialogOpen, setAnswerDialogOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [newQuestion, setNewQuestion] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  const { questions, loading: questionsLoading, createQuestion } = useQuestions();
+  const { questions, loading: questionsLoading, createQuestion, refetch } = useQuestions();
   const { alerts, loading: alertsLoading } = useAlerts();
   const { toast } = useToast();
+
+  const handleAnswerClick = (question: Question) => {
+    setSelectedQuestion(question);
+    setAnswerDialogOpen(true);
+  };
 
   const loading = questionsLoading || alertsLoading;
 
@@ -154,7 +162,7 @@ export default function Ask() {
                         )}
                         
                         <div className="flex items-center gap-2 mt-3">
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" onClick={() => handleAnswerClick(question)}>
                             Answer
                           </Button>
                           <span className="text-xs text-muted-foreground">
@@ -284,6 +292,13 @@ export default function Ask() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AnswerDialog
+        open={answerDialogOpen}
+        onOpenChange={setAnswerDialogOpen}
+        question={selectedQuestion}
+        onAnswerSubmitted={refetch}
+      />
     </AppLayout>
   );
 }

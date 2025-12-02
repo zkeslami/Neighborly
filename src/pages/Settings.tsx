@@ -14,6 +14,7 @@ import { useUserSettings, NotificationPreferences } from "@/hooks/useUserSetting
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { FriendsManagement } from "@/components/settings/FriendsManagement";
 
 const timezones = [
   'Pacific Time (PT)',
@@ -204,6 +205,9 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Friends Management */}
+        <FriendsManagement />
 
         {/* Connected Services */}
         <Card>
