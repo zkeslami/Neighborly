@@ -7,6 +7,23 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+
+// Input validation schema
+const emailShareSchema = z.object({
+  recipientEmail: z.string()
+    .trim()
+    .min(1, "Email is required")
+    .max(255, "Email must be less than 255 characters")
+    .email("Please enter a valid email address"),
+  senderName: z.string()
+    .trim()
+    .min(1, "Sender name is required")
+    .max(100, "Name must be less than 100 characters"),
+  title: z.string().max(200, "Title must be less than 200 characters").optional(),
+  description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
+  location: z.string().max(500, "Location must be less than 500 characters").optional(),
+});
 
 interface EmailShareModalProps {
   open: boolean;
@@ -29,6 +46,7 @@ export function EmailShareModal({
 }: EmailShareModalProps) {
   const [copied, setCopied] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const { profile } = useProfile();
@@ -55,18 +73,53 @@ export function EmailShareModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleEmailChange = (value: string) => {
+    setRecipientEmail(value);
+    // Clear error when user starts typing
+    if (emailError) {
+      setEmailError(null);
+    }
+  };
+
+  const validateEmail = (): boolean => {
+    const result = emailShareSchema.shape.recipientEmail.safeParse(recipientEmail);
+    if (!result.success) {
+      setEmailError(result.error.errors[0].message);
+      return false;
+    }
+    setEmailError(null);
+    return true;
+  };
+
   const handleEmailShare = () => {
     const subject = encodeURIComponent(generateSubject());
     const body = encodeURIComponent(generateMessage());
     const mailtoLink = recipientEmail 
-      ? `mailto:${recipientEmail}?subject=${subject}&body=${body}`
+      ? `mailto:${encodeURIComponent(recipientEmail)}?subject=${subject}&body=${body}`
       : `mailto:?subject=${subject}&body=${body}`;
     window.open(mailtoLink, "_blank");
   };
 
   const handleSendEmail = async () => {
-    if (!recipientEmail) {
-      toast({ title: "Please enter an email address", variant: "destructive" });
+    // Validate email before sending
+    if (!validateEmail()) {
+      return;
+    }
+
+    const senderName = profile?.name || 'A friend';
+
+    // Full validation
+    const validationResult = emailShareSchema.safeParse({
+      recipientEmail,
+      senderName,
+      title,
+      description,
+      location
+    });
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors[0].message;
+      toast({ title: errorMessage, variant: "destructive" });
       return;
     }
 
@@ -76,13 +129,13 @@ export function EmailShareModal({
       const { error } = await supabase.functions.invoke('send-invitation', {
         body: {
           type: 'event_share',
-          recipientEmail,
-          senderName: profile?.name || 'A friend',
+          recipientEmail: validationResult.data.recipientEmail,
+          senderName: validationResult.data.senderName,
           details: {
-            title,
-            description,
+            title: validationResult.data.title,
+            description: validationResult.data.description,
             date,
-            location
+            location: validationResult.data.location
           }
         }
       });
@@ -96,6 +149,7 @@ export function EmailShareModal({
         toast({ title: "Email sent!", description: `Shared with ${recipientEmail}` });
         onOpenChange(false);
         setRecipientEmail('');
+        setEmailError(null);
       }
     } catch (e) {
       console.error('Error:', e);
@@ -106,8 +160,16 @@ export function EmailShareModal({
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      setEmailError(null);
+      setRecipientEmail('');
+    }
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -127,8 +189,14 @@ export function EmailShareModal({
               type="email"
               placeholder="friend@example.com"
               value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              onBlur={validateEmail}
+              className={emailError ? "border-destructive" : ""}
+              maxLength={255}
             />
+            {emailError && (
+              <p className="text-sm text-destructive">{emailError}</p>
+            )}
           </div>
 
           <div className="p-4 bg-muted rounded-lg text-sm whitespace-pre-line">
@@ -156,7 +224,7 @@ export function EmailShareModal({
             <Button 
               onClick={handleSendEmail}
               className="flex-1"
-              disabled={sending}
+              disabled={sending || !!emailError}
             >
               {sending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
