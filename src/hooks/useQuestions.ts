@@ -50,7 +50,7 @@ export function useQuestions() {
     } else {
       const formatted = (data || []).map(q => ({
         ...q,
-        answers: Array.isArray(q.answers) ? q.answers as Answer[] : []
+        answers: Array.isArray(q.answers) ? (q.answers as unknown as Answer[]) : []
       }));
       setQuestions(formatted);
     }
