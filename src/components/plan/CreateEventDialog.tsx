@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Coffee, Utensils, MapPin, Film, Briefcase, Plane, Dumbbell, ExternalLink, Check } from "lucide-react";
-import { mockFriends } from "@/data/mockFriends";
-import { mockWorkouts } from "@/data/mockWorkouts";
+import { Calendar, Coffee, Utensils, MapPin, Film, Briefcase, Plane, Dumbbell, ExternalLink, Check, Loader2 } from "lucide-react";
+import { useFriends } from "@/hooks/useFriends";
+import { useEvents } from "@/hooks/useEvents";
 import { useToast } from "@/hooks/use-toast";
 
 interface CreateEventDialogProps {
@@ -36,9 +36,18 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [location, setLocation] = useState(prefilledLocation || "");
-  const [selectedWorkout, setSelectedWorkout] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { friends, loading: friendsLoading } = useFriends();
+  const { createEvent } = useEvents();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (prefilledLocation) {
+      setLocation(prefilledLocation);
+    }
+  }, [prefilledLocation]);
 
   const resetForm = () => {
     setStep(1);
@@ -48,7 +57,6 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
     setDate("");
     setTime("");
     setLocation(prefilledLocation || "");
-    setSelectedWorkout("");
     setNotes("");
   };
 
@@ -65,12 +73,31 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
     );
   };
 
-  const handleCreate = () => {
-    toast({
-      title: "Event Created!",
-      description: `${title} has been added to your calendar.`
+  const handleCreate = async () => {
+    setSaving(true);
+    
+    const dateTime = new Date(`${date}T${time}`);
+    
+    const event = await createEvent({
+      title: title || `${eventTypes.find(t => t.id === eventType)?.label} with friends`,
+      event_type: eventType,
+      date: dateTime.toISOString(),
+      location_name: location || null,
+      location_address: null,
+      latitude: null,
+      longitude: null,
+      notes: notes || null,
+      workout_id: null,
+      workout_name: eventType === "workout" ? "Custom Workout" : null,
+      attendee_ids: selectedFriends,
+      status: 'upcoming'
     });
-    handleClose();
+
+    setSaving(false);
+    
+    if (event) {
+      handleClose();
+    }
   };
 
   const isWorkout = eventType === "workout";
@@ -81,7 +108,7 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
         <DialogHeader>
           <DialogTitle>Create Event</DialogTitle>
           <DialogDescription>
-            Step {step} of {isWorkout ? 5 : 4}
+            Step {step} of 3
           </DialogDescription>
         </DialogHeader>
 
@@ -116,31 +143,42 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
 
         {step === 2 && (
           <div className="space-y-4">
-            <Label>Who's joining?</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {mockFriends.map(friend => (
-                <Button
-                  key={friend.id}
-                  variant={selectedFriends.includes(friend.id) ? "default" : "outline"}
-                  className="h-auto py-3 justify-start"
-                  onClick={() => toggleFriend(friend.id)}
-                >
-                  <Avatar className="w-8 h-8 mr-2">
-                    <AvatarImage src={friend.avatar_url} />
-                    <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span className="truncate">{friend.name.split(" ")[0]}</span>
-                  {selectedFriends.includes(friend.id) && (
-                    <Check className="h-4 w-4 ml-auto" />
-                  )}
-                </Button>
-              ))}
-            </div>
+            <Label>Who's joining? (optional)</Label>
+            {friendsLoading ? (
+              <div className="flex justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : friends.length === 0 ? (
+              <Card>
+                <CardContent className="p-4 text-center text-muted-foreground">
+                  No friends added yet. You can add friends in Settings.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+                {friends.map(friend => (
+                  <Button
+                    key={friend.id}
+                    variant={selectedFriends.includes(friend.id) ? "default" : "outline"}
+                    className="h-auto py-3 justify-start"
+                    onClick={() => toggleFriend(friend.id)}
+                  >
+                    <Avatar className="w-8 h-8 mr-2">
+                      <AvatarImage src={friend.avatar_url || undefined} />
+                      <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{friend.name.split(" ")[0]}</span>
+                    {selectedFriends.includes(friend.id) && (
+                      <Check className="h-4 w-4 ml-auto" />
+                    )}
+                  </Button>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
               <Button 
                 className="flex-1" 
-                disabled={selectedFriends.length === 0}
                 onClick={() => setStep(3)}
               >
                 Continue
@@ -202,63 +240,25 @@ export function CreateEventDialog({ open, onOpenChange, prefilledLocation }: Cre
                 placeholder="Any additional details..."
               />
             </div>
+            {isWorkout && (
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => window.open("https://generafit-ai.lovable.app/", "_blank")}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Browse workouts on GeneraFit AI
+              </Button>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
               <Button 
                 className="flex-1" 
-                disabled={!title || !date || !time}
-                onClick={() => isWorkout ? setStep(4) : handleCreate()}
-              >
-                {isWorkout ? "Continue" : "Create Event"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && isWorkout && (
-          <div className="space-y-4">
-            <Label>Select a GeneraFit AI Workout</Label>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {mockWorkouts.map(workout => (
-                <Card 
-                  key={workout.id}
-                  className={`cursor-pointer transition-colors ${selectedWorkout === workout.id ? "border-primary bg-primary/5" : ""}`}
-                  onClick={() => setSelectedWorkout(workout.id)}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-foreground">{workout.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">{workout.duration}</Badge>
-                          <Badge variant="outline" className="text-xs">{workout.difficulty}</Badge>
-                          <Badge variant="outline" className="text-xs">{workout.category}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{workout.description}</p>
-                      </div>
-                      {selectedWorkout === workout.id && (
-                        <Check className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            <Button 
-              variant="ghost" 
-              className="w-full"
-              onClick={() => window.open("https://generafit-ai.lovable.app/", "_blank")}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Browse more on GeneraFit AI
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
-              <Button 
-                className="flex-1" 
+                disabled={!date || !time || saving}
                 onClick={handleCreate}
               >
-                Create Workout Event
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Create Event
               </Button>
             </div>
           </div>

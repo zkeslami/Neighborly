@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Place {
   id: string;
@@ -12,23 +13,32 @@ export interface Place {
   google_place_id: string | null;
   category: string | null;
   notes: string | null;
-  is_favorite: boolean;
+  is_favorite: boolean | null;
+  visited_status: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type NewPlace = Omit<Place, 'id' | 'created_at' | 'updated_at'>;
+export type NewPlace = Omit<Place, 'id' | 'created_at' | 'updated_at' | 'visited_status'>;
 
 export function usePlaces() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchPlaces = async () => {
+    if (!user) {
+      setPlaces([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase
       .from('places')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -39,10 +49,12 @@ export function usePlaces() {
     setLoading(false);
   };
 
-  const addPlace = async (place: NewPlace) => {
+  const addPlace = async (place: Omit<NewPlace, 'user_id'>) => {
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('places')
-      .insert([place])
+      .insert([{ ...place, user_id: user.id }])
       .select()
       .single();
 
@@ -57,9 +69,13 @@ export function usePlaces() {
   };
 
   const importPlaces = async (placesToImport: NewPlace[]) => {
+    if (!user) return false;
+
+    const placesWithUser = placesToImport.map(p => ({ ...p, user_id: user.id }));
+
     const { data, error } = await supabase
       .from('places')
-      .insert(placesToImport)
+      .insert(placesWithUser)
       .select();
 
     if (error) {
@@ -103,9 +119,24 @@ export function usePlaces() {
     return true;
   };
 
+  const updateVisitedStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('places')
+      .update({ visited_status: status })
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Error updating place', description: error.message, variant: 'destructive' });
+      return false;
+    }
+
+    setPlaces(prev => prev.map(p => p.id === id ? { ...p, visited_status: status } : p));
+    return true;
+  };
+
   useEffect(() => {
     fetchPlaces();
-  }, []);
+  }, [user]);
 
-  return { places, loading, addPlace, importPlaces, deletePlace, toggleFavorite, refetch: fetchPlaces };
+  return { places, loading, addPlace, importPlaces, deletePlace, toggleFavorite, updateVisitedStatus, refetch: fetchPlaces };
 }

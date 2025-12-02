@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, MapPin, Clock, Users, Dumbbell, ExternalLink, MessageCircle } from "lucide-react";
-import { mockEvents, Event } from "@/data/mockEvents";
-import { mockFriends } from "@/data/mockFriends";
+import { Calendar, Plus, MapPin, Clock, Dumbbell, ExternalLink, Mail, Loader2 } from "lucide-react";
+import { useEvents, Event } from "@/hooks/useEvents";
+import { useFriends } from "@/hooks/useFriends";
 import { format } from "date-fns";
 import { CreateEventDialog } from "@/components/plan/CreateEventDialog";
 import { EventDetailModal } from "@/components/plan/EventDetailModal";
-import { WhatsAppShareModal } from "@/components/shared/WhatsAppShareModal";
+import { EmailShareModal } from "@/components/shared/EmailShareModal";
 
 export default function Plan() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -19,12 +19,12 @@ export default function Plan() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [eventToShare, setEventToShare] = useState<Event | null>(null);
 
-  const upcomingEvents = mockEvents.filter(e => e.status === "upcoming");
-  const pastEvents = mockEvents.filter(e => e.status === "past");
-  const suggestedEvents = mockEvents.filter(e => e.status === "suggested");
+  const { events, upcomingEvents, pastEvents, loading } = useEvents();
+  const { friends } = useFriends();
 
-  const getFriendsByIds = (ids: string[]) => {
-    return ids.map(id => mockFriends.find(f => f.id === id)).filter(Boolean);
+  const getFriendsByIds = (ids: string[] | null) => {
+    if (!ids) return [];
+    return ids.map(id => friends.find(f => f.id === id)).filter(Boolean);
   };
 
   const handleShare = (event: Event) => {
@@ -33,7 +33,7 @@ export default function Plan() {
   };
 
   const EventCard = ({ event }: { event: Event }) => {
-    const friends = getFriendsByIds(event.attendee_ids);
+    const eventFriends = getFriendsByIds(event.attendee_ids);
     const isWorkout = event.event_type === "workout";
 
     return (
@@ -62,30 +62,34 @@ export default function Plan() {
                 </span>
               </div>
               
-              <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                {event.location_name}
-              </div>
-              
-              <div className="flex items-center gap-2 mt-3">
-                <div className="flex -space-x-2">
-                  {friends.slice(0, 3).map(friend => (
-                    <Avatar key={friend?.id} className="w-6 h-6 border-2 border-background">
-                      <AvatarImage src={friend?.avatar_url} />
-                      <AvatarFallback>{friend?.name?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  ))}
+              {event.location_name && (
+                <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  {event.location_name}
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {friends.map(f => f?.name?.split(" ")[0]).join(", ")}
-                </span>
-              </div>
+              )}
+              
+              {eventFriends.length > 0 && (
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="flex -space-x-2">
+                    {eventFriends.slice(0, 3).map(friend => (
+                      <Avatar key={friend?.id} className="w-6 h-6 border-2 border-background">
+                        <AvatarImage src={friend?.avatar_url || undefined} />
+                        <AvatarFallback>{friend?.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {eventFriends.map(f => f?.name?.split(" ")[0]).join(", ")}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           
           <div className="flex gap-2 mt-4" onClick={e => e.stopPropagation()}>
             <Button size="sm" variant="outline" onClick={() => handleShare(event)}>
-              <MessageCircle className="h-4 w-4 mr-1" />
+              <Mail className="h-4 w-4 mr-1" />
               Share
             </Button>
             {isWorkout && (
@@ -103,6 +107,16 @@ export default function Plan() {
       </Card>
     );
   };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -126,9 +140,6 @@ export default function Plan() {
             <TabsTrigger value="upcoming">
               Upcoming ({upcomingEvents.length})
             </TabsTrigger>
-            <TabsTrigger value="suggested">
-              Suggested ({suggestedEvents.length})
-            </TabsTrigger>
             <TabsTrigger value="past">
               Past ({pastEvents.length})
             </TabsTrigger>
@@ -139,8 +150,10 @@ export default function Plan() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No upcoming events</p>
-                  <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
+                  <h3 className="text-lg font-semibold mb-2">No upcoming events</h3>
+                  <p className="text-muted-foreground mb-4">Create an event to get started</p>
+                  <Button onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
                     Create your first event
                   </Button>
                 </CardContent>
@@ -154,20 +167,21 @@ export default function Plan() {
             )}
           </TabsContent>
 
-          <TabsContent value="suggested" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {suggestedEvents.map(event => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          </TabsContent>
-
           <TabsContent value="past" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {pastEvents.map(event => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
+            {pastEvents.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No past events</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {pastEvents.map(event => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -175,17 +189,17 @@ export default function Plan() {
       <CreateEventDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       
       <EventDetailModal 
-        event={selectedEvent} 
+        event={selectedEvent as any} 
         open={!!selectedEvent} 
         onOpenChange={(open) => !open && setSelectedEvent(null)} 
       />
       
-      <WhatsAppShareModal
+      <EmailShareModal
         open={shareModalOpen}
         onOpenChange={setShareModalOpen}
         title={eventToShare?.title || ""}
         date={eventToShare ? format(new Date(eventToShare.date), "EEE, MMM d 'at' h:mm a") : ""}
-        location={eventToShare?.location_name}
+        location={eventToShare?.location_name || undefined}
         workoutLink={eventToShare?.workout_id ? "https://generafit-ai.lovable.app/" : undefined}
       />
     </AppLayout>

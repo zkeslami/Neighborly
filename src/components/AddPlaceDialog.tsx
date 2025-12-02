@@ -4,15 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Plus, Search } from 'lucide-react';
-import { Place, NewPlace } from '@/hooks/usePlaces';
+import { Plus } from 'lucide-react';
+import { usePlaces } from '@/hooks/usePlaces';
 
 interface AddPlaceDialogProps {
-  onAdd: (place: NewPlace) => Promise<Place | null>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AddPlaceDialog({ onAdd }: AddPlaceDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddPlaceDialog({ open: controlledOpen, onOpenChange }: AddPlaceDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -21,12 +22,18 @@ export function AddPlaceDialog({ onAdd }: AddPlaceDialogProps) {
     notes: '',
   });
 
+  const { addPlace } = usePlaces();
+
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? onOpenChange! : setInternalOpen;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
 
     setAdding(true);
-    const result = await onAdd({
+    const result = await addPlace({
       name: form.name.trim(),
       address: form.address.trim() || null,
       latitude: null,
@@ -35,7 +42,6 @@ export function AddPlaceDialog({ onAdd }: AddPlaceDialogProps) {
       category: form.category.trim() || null,
       notes: form.notes.trim() || null,
       is_favorite: false,
-      user_id: null,
     });
 
     if (result) {
@@ -45,14 +51,16 @@ export function AddPlaceDialog({ onAdd }: AddPlaceDialogProps) {
     setAdding(false);
   };
 
-  return (
+  const content = (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Place
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Place
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Place</DialogTitle>
@@ -103,4 +111,6 @@ export function AddPlaceDialog({ onAdd }: AddPlaceDialogProps) {
       </DialogContent>
     </Dialog>
   );
+
+  return content;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,77 +8,120 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings as SettingsIcon, User, Link2, Bell, Check, X, ExternalLink, MessageCircle, Map, Dumbbell, Instagram, Twitter } from "lucide-react";
+import { Settings as SettingsIcon, User, Link2, Bell, Check, X, ExternalLink, Map, Dumbbell, LogOut, Loader2 } from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { useUserSettings, NotificationPreferences } from "@/hooks/useUserSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+const timezones = [
+  'Pacific Time (PT)',
+  'Mountain Time (MT)',
+  'Central Time (CT)',
+  'Eastern Time (ET)',
+  'UTC',
+  'GMT',
+];
 
 interface Integration {
   id: string;
   name: string;
   icon: React.ElementType;
-  connected: boolean;
   description: string;
   url?: string;
+  settingsKey?: 'generafit_connected' | 'google_maps_connected';
 }
 
 const integrations: Integration[] = [
   {
-    id: "whatsapp",
-    name: "WhatsApp",
-    icon: MessageCircle,
-    connected: true,
-    description: "Share events and plans with friends"
-  },
-  {
     id: "google",
     name: "Google Maps & Lists",
     icon: Map,
-    connected: true,
-    description: "Import and sync your saved places"
+    description: "Import and sync your saved places",
+    settingsKey: 'google_maps_connected'
   },
   {
     id: "generafit",
     name: "GeneraFit AI",
     icon: Dumbbell,
-    connected: true,
     description: "Access workout plans and track fitness",
-    url: "https://generafit-ai.lovable.app/"
+    url: "https://generafit-ai.lovable.app/",
+    settingsKey: 'generafit_connected'
   },
-  {
-    id: "instagram",
-    name: "Instagram",
-    icon: Instagram,
-    connected: false,
-    description: "Import memories from your posts"
-  },
-  {
-    id: "twitter",
-    name: "X / Twitter",
-    icon: Twitter,
-    connected: false,
-    description: "Get local alerts and updates"
-  }
 ];
 
 interface NotificationSetting {
-  id: string;
+  id: keyof NotificationPreferences;
   label: string;
   description: string;
-  enabled: boolean;
 }
 
-export default function Settings() {
-  const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    { id: "memories", label: "Memory Highlights", description: "Get notified about anniversaries and throwbacks", enabled: true },
-    { id: "events", label: "Event Reminders", description: "Reminders before upcoming events", enabled: true },
-    { id: "workouts", label: "Workout Suggestions", description: "Get workout ideas with friends", enabled: true },
-    { id: "alerts", label: "Local Alerts", description: "Urgent updates from your community", enabled: true },
-    { id: "nudges", label: "Relationship Nudges", description: "Reminders to reconnect with friends", enabled: false }
-  ]);
+const notificationSettings: NotificationSetting[] = [
+  { id: "memoryHighlights", label: "Memory Highlights", description: "Get notified about anniversaries and throwbacks" },
+  { id: "eventReminders", label: "Event Reminders", description: "Reminders before upcoming events" },
+  { id: "workoutSuggestions", label: "Workout Suggestions", description: "Get workout ideas with friends" },
+  { id: "communityAlerts", label: "Community Alerts", description: "Urgent updates from your community" },
+  { id: "relationshipNudges", label: "Relationship Nudges", description: "Reminders to reconnect with friends" }
+];
 
-  const toggleNotification = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, enabled: !n.enabled } : n)
-    );
+export default function Settings() {
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const { settings, loading: settingsLoading, updateNotificationPreference, connectService } = useUserSettings();
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [timezone, setTimezone] = useState('Central Time (CT)');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name || '');
+      setCity(profile.city || '');
+      setTimezone(profile.timezone || 'Central Time (CT)');
+    }
+  }, [profile]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    await updateProfile({ name, city, timezone });
+    setSaving(false);
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const isConnected = (settingsKey?: 'generafit_connected' | 'google_maps_connected') => {
+    if (!settings || !settingsKey) return false;
+    return settings[settingsKey];
+  };
+
+  const handleConnect = async (integration: Integration) => {
+    if (integration.url) {
+      window.open(integration.url, "_blank");
+    }
+    if (integration.settingsKey) {
+      const service = integration.settingsKey === 'generafit_connected' ? 'generafit' : 'google_maps';
+      await connectService(service, true);
+    }
+  };
+
+  const loading = profileLoading || settingsLoading;
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -103,8 +146,8 @@ export default function Settings() {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
               <Avatar className="w-20 h-20">
-                <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=You" />
-                <AvatarFallback>YO</AvatarFallback>
+                <AvatarImage src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.email}`} />
+                <AvatarFallback>{name?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
               <div>
                 <Button variant="outline" size="sm">Change Photo</Button>
@@ -114,21 +157,51 @@ export default function Settings() {
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" defaultValue="Your Name" />
+                <Input 
+                  id="name" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  value={profile?.email || ''}
+                  disabled
+                  className="bg-muted"
+                />
               </div>
               
               <div className="grid gap-2">
                 <Label htmlFor="city">City</Label>
-                <Input id="city" defaultValue="Austin, TX" />
+                <Input 
+                  id="city" 
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
               </div>
               
               <div className="grid gap-2">
                 <Label htmlFor="timezone">Time Zone</Label>
-                <Input id="timezone" defaultValue="Central Time (CT)" />
+                <select
+                  id="timezone"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                >
+                  {timezones.map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
               </div>
             </div>
             
-            <Button>Save Changes</Button>
+            <Button onClick={handleSaveProfile} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
           </CardContent>
         </Card>
 
@@ -144,6 +217,7 @@ export default function Settings() {
           <CardContent className="space-y-4">
             {integrations.map((integration, index) => {
               const Icon = integration.icon;
+              const connected = isConnected(integration.settingsKey);
               return (
                 <div key={integration.id}>
                   {index > 0 && <Separator className="my-4" />}
@@ -155,7 +229,7 @@ export default function Settings() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-foreground">{integration.name}</p>
-                          {integration.connected ? (
+                          {connected ? (
                             <Badge variant="secondary" className="bg-green-100 text-green-700">
                               <Check className="h-3 w-3 mr-1" />
                               Connected
@@ -180,8 +254,12 @@ export default function Settings() {
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="outline" size="sm">
-                        {integration.connected ? "Manage" : "Connect"}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleConnect(integration)}
+                      >
+                        {connected ? "Manage" : "Connect"}
                       </Button>
                     </div>
                   </div>
@@ -201,7 +279,7 @@ export default function Settings() {
             <CardDescription>Choose what you want to be notified about</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {notifications.map((notification, index) => (
+            {notificationSettings.map((notification, index) => (
               <div key={notification.id}>
                 {index > 0 && <Separator className="my-4" />}
                 <div className="flex items-center justify-between">
@@ -210,12 +288,22 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">{notification.description}</p>
                   </div>
                   <Switch
-                    checked={notification.enabled}
-                    onCheckedChange={() => toggleNotification(notification.id)}
+                    checked={settings?.notification_preferences?.[notification.id] ?? false}
+                    onCheckedChange={(checked) => updateNotificationPreference(notification.id, checked)}
                   />
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Sign Out */}
+        <Card>
+          <CardContent className="pt-6">
+            <Button variant="outline" onClick={handleSignOut} className="w-full">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </CardContent>
         </Card>
       </div>
