@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useFriends } from '@/hooks/useFriends';
@@ -11,22 +11,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Home, User, Users, MapPin, Link2, ChevronRight, ChevronLeft, Plus, X, Upload, FileJson, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { Home, User, Users, MapPin, Link2, ChevronRight, ChevronLeft, Plus, X, FileJson, Check, ExternalLink, Loader2 } from 'lucide-react';
 
-const timezones = [
-  'Pacific Time (PT)',
-  'Mountain Time (MT)',
-  'Central Time (CT)',
-  'Eastern Time (ET)',
-  'UTC',
-  'GMT',
+const popularCities = [
+  "Austin, TX", "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX",
+  "San Francisco, CA", "Seattle, WA", "Denver, CO", "Miami, FL", "Atlanta, GA",
+  "Boston, MA", "Phoenix, AZ", "San Diego, CA", "Dallas, TX", "Portland, OR",
+  "Nashville, TN", "Las Vegas, NV", "Minneapolis, MN", "San Antonio, TX", "Philadelphia, PA",
+  "Charlotte, NC", "Columbus, OH", "Indianapolis, IN", "San Jose, CA", "Fort Worth, TX",
+  "Jacksonville, FL", "Austin, TX", "Memphis, TN", "Baltimore, MD", "Milwaukee, WI",
+  "Albuquerque, NM", "Tucson, AZ", "Fresno, CA", "Sacramento, CA", "Kansas City, MO",
+  "Mesa, AZ", "Virginia Beach, VA", "Oakland, CA", "Long Beach, CA", "Omaha, NE",
+  "Raleigh, NC", "Colorado Springs, CO", "Tulsa, OK", "Cleveland, OH", "Arlington, TX",
+  "New Orleans, LA", "Bakersfield, CA", "Tampa, FL", "Honolulu, HI", "Aurora, CO"
 ];
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
-  const [timezone, setTimezone] = useState('Central Time (CT)');
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [friendEmails, setFriendEmails] = useState<string[]>([]);
   const [currentEmail, setCurrentEmail] = useState('');
   const [jsonInput, setJsonInput] = useState('');
@@ -37,11 +41,18 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { updateProfile, completeOnboarding } = useProfile();
-  const { addFriend, inviteFriend } = useFriends();
+  const { inviteFriend } = useFriends();
   const { importPlaces } = usePlaces();
   const { connectService } = useUserSettings();
 
   const totalSteps = 4;
+
+  const citySuggestions = useMemo(() => {
+    if (city.length < 2) return [];
+    return popularCities
+      .filter(c => c.toLowerCase().includes(city.toLowerCase()))
+      .slice(0, 5);
+  }, [city]);
 
   const addEmail = () => {
     if (currentEmail && !friendEmails.includes(currentEmail)) {
@@ -121,7 +132,7 @@ export default function Onboarding() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    await updateProfile({ name, city, timezone });
+    await updateProfile({ name, city });
     setSaving(false);
     setStep(2);
   };
@@ -179,27 +190,35 @@ export default function Onboarding() {
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <Label htmlFor="city">City</Label>
                 <Input
                   id="city"
-                  placeholder="e.g., Austin, TX"
+                  placeholder="Start typing your city..."
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    setShowCitySuggestions(true);
+                  }}
+                  onFocus={() => setShowCitySuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <select
-                  id="timezone"
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                >
-                  {timezones.map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
+                {showCitySuggestions && citySuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg">
+                    {citySuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors first:rounded-t-md last:rounded-b-md"
+                        onClick={() => {
+                          setCity(suggestion);
+                          setShowCitySuggestions(false);
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <Button onClick={handleSaveProfile} className="w-full" disabled={!name || saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -263,8 +282,8 @@ export default function Onboarding() {
                 <h3 className="font-semibold">Import Your Places</h3>
               </div>
               {importedCount > 0 ? (
-                <div className="p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
-                  <Check className="h-5 w-5" />
+                <div className="p-4 bg-accent/10 text-accent-foreground rounded-lg flex items-center gap-2">
+                  <Check className="h-5 w-5 text-accent" />
                   Successfully imported {importedCount} places!
                 </div>
               ) : (
@@ -350,7 +369,7 @@ export default function Onboarding() {
                       </p>
                     </div>
                     {importedCount > 0 ? (
-                      <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      <Badge variant="secondary" className="bg-accent/10 text-accent">
                         <Check className="h-3 w-3 mr-1" />
                         Connected
                       </Badge>
