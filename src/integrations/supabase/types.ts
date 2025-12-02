@@ -26,12 +26,15 @@ export type Database = {
           location_name: string | null
           longitude: number | null
           notes: string | null
+          reminder_sent_1h: boolean | null
+          reminder_sent_24h: boolean | null
           status: string | null
           title: string
           updated_at: string
           user_id: string | null
           workout_id: string | null
           workout_name: string | null
+          workout_url: string | null
         }
         Insert: {
           attendee_ids?: string[] | null
@@ -44,12 +47,15 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          reminder_sent_1h?: boolean | null
+          reminder_sent_24h?: boolean | null
           status?: string | null
           title: string
           updated_at?: string
           user_id?: string | null
           workout_id?: string | null
           workout_name?: string | null
+          workout_url?: string | null
         }
         Update: {
           attendee_ids?: string[] | null
@@ -62,12 +68,15 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          reminder_sent_1h?: boolean | null
+          reminder_sent_24h?: boolean | null
           status?: string | null
           title?: string
           updated_at?: string
           user_id?: string | null
           workout_id?: string | null
           workout_name?: string | null
+          workout_url?: string | null
         }
         Relationships: []
       }
