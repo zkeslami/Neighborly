@@ -71,6 +71,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_invitations: {
+        Row: {
+          created_at: string | null
+          id: string
+          invitee_email: string
+          inviter_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invitee_email: string
+          inviter_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invitee_email?: string
+          inviter_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       friends: {
         Row: {
           avatar_url: string | null
@@ -238,6 +265,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          city: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          onboarding_completed: boolean | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          name?: string | null
+          onboarding_completed?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          onboarding_completed?: boolean | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       questions: {
         Row: {
           answers: Json | null
@@ -277,6 +340,33 @@ export type Database = {
           question?: string
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string | null
+          generafit_connected: boolean | null
+          google_maps_connected: boolean | null
+          notification_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          generafit_connected?: boolean | null
+          google_maps_connected?: boolean | null
+          notification_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          generafit_connected?: boolean | null
+          google_maps_connected?: boolean | null
+          notification_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
