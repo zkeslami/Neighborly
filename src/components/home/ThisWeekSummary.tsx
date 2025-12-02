@@ -1,17 +1,46 @@
-import { Calendar, Dumbbell, Users } from "lucide-react";
+import { Calendar, Dumbbell, Users, CalendarPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockEvents } from "@/data/mockEvents";
-import { mockFriends } from "@/data/mockFriends";
+import { Button } from "@/components/ui/button";
+import { useEvents } from "@/hooks/useEvents";
+import { useFriends } from "@/hooks/useFriends";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 export function ThisWeekSummary() {
-  const upcomingEvents = mockEvents.filter(e => e.status === "upcoming").slice(0, 3);
-  const socialEvents = upcomingEvents.filter(e => e.event_type === "social");
-  const workoutEvents = upcomingEvents.filter(e => e.event_type === "workout");
+  const { upcomingEvents } = useEvents();
+  const { friends } = useFriends();
+  const navigate = useNavigate();
 
-  const getFriendNames = (ids: string[]) => {
-    return ids.map(id => mockFriends.find(f => f.id === id)?.name || "Unknown").join(", ");
+  const events = upcomingEvents.slice(0, 3);
+  const socialEvents = events.filter(e => e.event_type === "social");
+  const workoutEvents = events.filter(e => e.event_type === "workout");
+
+  const getFriendNames = (ids: string[] | null) => {
+    if (!ids || ids.length === 0) return "Just you";
+    return ids.map(id => friends.find(f => f.id === id)?.name || "Friend").join(", ");
   };
+
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            This Week with Friends
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center py-4">
+            <CalendarPlus className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-3">No events planned yet</p>
+            <Button size="sm" onClick={() => navigate('/plan')}>
+              Plan something
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -34,9 +63,9 @@ export function ThisWeekSummary() {
         </div>
         
         <div className="space-y-3">
-          {upcomingEvents.map(event => (
+          {events.map(event => (
             <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={`w-2 h-2 rounded-full mt-2 ${event.event_type === "workout" ? "bg-green-500" : "bg-blue-500"}`} />
+              <div className={`w-2 h-2 rounded-full mt-2 ${event.event_type === "workout" ? "bg-accent" : "bg-primary"}`} />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-foreground">{event.title}</p>
                 <p className="text-xs text-muted-foreground">

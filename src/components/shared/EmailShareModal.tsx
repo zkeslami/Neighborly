@@ -2,9 +2,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Copy, CheckCircle, Send } from "lucide-react";
+import { Mail, Copy, CheckCircle, Send, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EmailShareModalProps {
   open: boolean;
@@ -29,6 +31,7 @@ export function EmailShareModal({
   const [recipientEmail, setRecipientEmail] = useState('');
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
+  const { profile } = useProfile();
 
   const generateMessage = () => {
     let message = `🏠 Neighborly\n\n`;
@@ -68,12 +71,39 @@ export function EmailShareModal({
     }
 
     setSending(true);
-    // For now, just open mailto - in future this could call an edge function
-    handleEmailShare();
-    setSending(false);
     
-    toast({ title: "Opening email client" });
-    onOpenChange(false);
+    try {
+      const { error } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          type: 'event_share',
+          recipientEmail,
+          senderName: profile?.name || 'A friend',
+          details: {
+            title,
+            description,
+            date,
+            location
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error sending email:', error);
+        // Fallback to mailto
+        handleEmailShare();
+        toast({ title: "Opening email client as fallback" });
+      } else {
+        toast({ title: "Email sent!", description: `Shared with ${recipientEmail}` });
+        onOpenChange(false);
+        setRecipientEmail('');
+      }
+    } catch (e) {
+      console.error('Error:', e);
+      handleEmailShare();
+      toast({ title: "Opening email client" });
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -91,7 +121,7 @@ export function EmailShareModal({
         
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="recipient">Recipient Email (optional)</Label>
+            <Label htmlFor="recipient">Recipient Email</Label>
             <Input
               id="recipient"
               type="email"
@@ -128,7 +158,11 @@ export function EmailShareModal({
               className="flex-1"
               disabled={sending}
             >
-              <Send className="h-4 w-4 mr-2" />
+              {sending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
               Send Email
             </Button>
           </div>
